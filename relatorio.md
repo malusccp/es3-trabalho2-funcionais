@@ -141,9 +141,7 @@ Não encontramos defeito de comportamento em nenhum dos três sistemas. Todos os
 
 ## 10. Tabela de contribuição
 
-A preencher pela equipe. Não temos como saber quem fez o quê.
-
 | Integrante | O que fez |
 |---|---|
-| Maria Luiza Morais | |
-| Isaac de Jesus | |
+| Maria Luiza Morais | Pacote A (exemplo do pedido e desafio do portal de matrícula) e o relatório |
+| Isaac de Jesus | Pacote B (exemplo do login e desafio das inscrições) e o projeto anterior (Roger's Market) |
