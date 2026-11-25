@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="5" time="20.611" timestamp="2026-11-25T06:53:53.678702-03:00" hostname="malunitro"><testcase classname="test_fluxo_pedido" name="test_ct01_pedido_completo_com_sucesso" time="4.305" /><testcase classname="test_fluxo_pedido" name="test_ct02_finalizar_sem_endereco_exibe_erro" time="4.518" /><testcase classname="test_fluxo_pedido" name="test_ct03_finalizar_sem_pagamento_exibe_erro" time="3.974"><error message="failed on setup with &quot;selenium.common.exceptions.WebDriverException: Message: unknown error: unhandled inspector error: {&quot;code&quot;:-32000,&quot;message&quot;:&quot;Node with given id does not belong to the document&quot;}&#10;  (Session info: chrome=158.0.8127.88)&#10;Stacktrace:&#10;Symbols not available. Dumping unresolved backtrace:&#10;&#09;(No symbol) [0x7ff61a280f05]&#10;&#09;(No symbol) [0x7ff61a181db0]&#10;&#09;(No symbol) [0x7ff61a003433]&#10;&#09;(No symbol) [0x7ff61a8073b5]&#10;&#09;(No symbol) [0x7ff619ff67c6]&#10;&#09;(No symbol) [0x7ff619ff74bf]&#10;[+24 more lines; full report in element text]">driver = &lt;selenium.webdriver.chrome.webdriver.WebDriver (session="5bd774baa04dc0b844e8ded4da2063b1")&gt;
+base_url = 'http://127.0.0.1:5000'
+
+    @pytest.fixture
+    def carrinho_com_itens(driver, base_url):
+        """Pré-condição comum: usuário logado com X-Burger (22,90) x2 e Suco (9,00) x1."""
+        LoginPage(driver, base_url).abrir().entrar("aluno", "123456")
+        cardapio = CardapioPage(driver)
+&gt;       cardapio.adicionar_item(1).adicionar_item(1).adicionar_item(5)
+
+test_fluxo_pedido.py:30: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+pages\cardapio_page.py:27: in adicionar_item
+    self.wait.until(EC.staleness_of(botao))
+..\..\..\.venv\Lib\site-packages\selenium\webdriver\support\wait.py:112: in until
+    value = method(self._driver)
+            ^^^^^^^^^^^^^^^^^^^^
+..\..\..\.venv\Lib\site-packages\selenium\webdriver\support\expected_conditions.py:546: in _predicate
+    element.is_enabled()
+..\..\..\.venv\Lib\site-packages\selenium\webdriver\remote\webelement.py:238: in is_enabled
+    return self._execute(Command.IS_ELEMENT_ENABLED)["value"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\.venv\Lib\site-packages\selenium\webdriver\remote\webelement.py:532: in _execute
+    return self._parent.execute(command, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\.venv\Lib\site-packages\selenium\webdriver\remote\webdriver.py:569: in execute
+    self.error_handler.check_response(response)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;selenium.webdriver.remote.errorhandler.ErrorHandler object at 0x0000012E0E8774D0&gt;
+response = {'status': 500, 'value': '{"value":{"error":"unknown error","message":"unknown error: unhandled inspector error: {\\"c...1a18c494]\\n\\t(No symbol) [0x7ff61a17509c]\\n\\t(No symbol) [0x7ffa3898dda7]\\n\\t(No symbol) [0x7ffa39ff9c5c]\\n"}}'}
+
+    def check_response(self, response: dict[str, Any]) -&gt; None:
+        """Check that a JSON response from the WebDriver does not have an error.
+    
+        Args:
+            response: The JSON response from the WebDriver server as a dictionary
+                object.
+    
+        Raises:
+            WebDriverException: If the response contains an error message.
+        """
+        status = response.get("status", None)
+        if not status or status == ErrorCode.SUCCESS:
+            return
+        value = None
+        message = response.get("message", "")
+        screen: str = response.get("screen", "")
+        stacktrace = None
+        if isinstance(status, int):
+            value_json = response.get("value", None)
+            if value_json and isinstance(value_json, str):
+                try:
+                    value = json.loads(value_json)
+                    if isinstance(value, dict):
+                        if len(value) == 1:
+                            value = value["value"]
+                        status = value.get("error", None)
+                        if not status:
+                            status = value.get("status", ErrorCode.UNKNOWN_ERROR)
+                            message = value.get("value") or value.get("message")
+                            if not isinstance(message, str):
+                                value = message
+                                message = message.get("message") if isinstance(message, dict) else None
+                        else:
+                            message = value.get("message", None)
+                except ValueError:
+                    pass
+    
+        exception_class: type[WebDriverException]
+        e = ErrorCode()
+        error_codes = [item for item in dir(e) if not item.startswith("__")]
+        for error_code in error_codes:
+            error_info = getattr(ErrorCode, error_code)
+            if isinstance(error_info, list) and status in error_info:
+                exception_class = getattr(ExceptionMapping, error_code, WebDriverException)
+                break
+        else:
+            exception_class = WebDriverException
+    
+        if not value:
+            value = response.get("value")
+        if isinstance(value, str):
+            raise exception_class(value)
+        if isinstance(value, dict):
+            if message == "" and "message" in value:
+                message = value["message"]
+    
+            screen = None  # type: ignore[assignment]
+            if "screen" in value:
+                screen = value["screen"]
+    
+            stacktrace = None
+            st_value = value.get("stackTrace") or value.get("stacktrace")
+            if st_value:
+                if isinstance(st_value, str):
+                    stacktrace = st_value.split("\n")
+                else:
+                    stacktrace = []
+                    try:
+                        for frame in st_value:
+                            line = frame.get("lineNumber", "")
+                            file = frame.get("fileName", "&lt;anonymous&gt;")
+                            if line:
+                                file = f"{file}:{line}"
+                            meth = frame.get("methodName", "&lt;anonymous&gt;")
+                            if "className" in frame:
+                                meth = f"{frame['className']}.{meth}"
+                            msg = "    at %s (%s)"
+                            msg = msg % (meth, file)
+                            stacktrace.append(msg)
+                    except TypeError:
+                        pass
+        if exception_class == UnexpectedAlertPresentException:
+            alert_text = None
+            if isinstance(value, dict):
+                if "data" in value:
+                    alert_text = value["data"].get("text")
+                elif "alert" in value:
+                    alert_text = value["alert"].get("text")
+            raise exception_class(message, screen, stacktrace, alert_text)
+&gt;       raise exception_class(message, screen, stacktrace)
+E       selenium.common.exceptions.WebDriverException: Message: unknown error: unhandled inspector error: {"code":-32000,"message":"Node with given id does not belong to the document"}
+E         (Session info: chrome=158.0.8127.88)
+E       Stacktrace:
+E       Symbols not available. Dumping unresolved backtrace:
+E       	(No symbol) [0x7ff61a280f05]
+E       	(No symbol) [0x7ff61a181db0]
+E       	(No symbol) [0x7ff61a003433]
+E       	(No symbol) [0x7ff61a8073b5]
+E       	(No symbol) [0x7ff619ff67c6]
+E       	(No symbol) [0x7ff619ff74bf]
+E       	(No symbol) [0x7ff61a81c1ca]
+E       	(No symbol) [0x7ff61a81e8a7]
+E       	(No symbol) [0x7ff61a81dab6]
+E       	(No symbol) [0x7ff61a0078d6]
+E       	(No symbol) [0x7ff61a00569e]
+E       	(No symbol) [0x7ff61a815b0d]
+E       	(No symbol) [0x7ff61a815c7f]
+E       	(No symbol) [0x7ff61a84212d]
+E       	(No symbol) [0x7ff61a85902a]
+E       	(No symbol) [0x7ff61a83c289]
+E       	(No symbol) [0x7ff61a83c220]
+E       	(No symbol) [0x7ff61a035b01]
+E       	(No symbol) [0x7ff61a01bea1]
+E       	(No symbol) [0x7ff61a01d1d3]
+E       	(No symbol) [0x7ff61a720f4f]
+E       	(No symbol) [0x7ff61a747678]
+E       	(No symbol) [0x7ff61a73af68]
+E       	(No symbol) [0x7ff61a39e62e]
+E       	(No symbol) [0x7ff61a1916f3]
+E       	(No symbol) [0x7ff61a18c304]
+E       	(No symbol) [0x7ff61a18c494]
+E       	(No symbol) [0x7ff61a17509c]
+E       	(No symbol) [0x7ffa3898dda7]
+E       	(No symbol) [0x7ffa39ff9c5c]
+
+..\..\..\.venv\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:234: WebDriverException</error></testcase><testcase classname="test_fluxo_pedido" name="test_ct04_carrinho_fica_vazio_apos_pedido" time="4.246" /><testcase classname="test_fluxo_pedido" name="test_ct05_pagina_protegida_redireciona_para_login" time="2.967" /></testsuite></testsuites>
